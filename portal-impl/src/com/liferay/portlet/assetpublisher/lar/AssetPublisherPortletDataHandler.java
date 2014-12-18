@@ -31,6 +31,7 @@ import com.liferay.portal.model.Portlet;
 import com.liferay.portal.security.auth.PrincipalException;
 import com.liferay.portal.security.permission.PermissionThreadLocal;
 import com.liferay.portal.service.CompanyLocalServiceUtil;
+import com.liferay.portal.service.GroupLocalServiceUtil;
 import com.liferay.portal.service.LayoutLocalServiceUtil;
 import com.liferay.portal.service.PortletLocalServiceUtil;
 import com.liferay.portal.util.PortalUtil;
@@ -225,9 +226,20 @@ public class AssetPublisherPortletDataHandler
 			String oldValue = oldValues[i];
 
 			if (oldValue.startsWith(AssetPublisher.SCOPE_ID_GROUP_PREFIX)) {
-				newValues[i] = StringUtil.replace(
-					oldValue, companyGroupScopeId,
-					"[$COMPANY_GROUP_SCOPE_ID$]");
+				if (oldValue.equals(companyGroupScopeId)) {
+					newValues[i] = "[$COMPANY_GROUP_SCOPE_ID$]";
+				} else {
+					String scopeIdSuffix = oldValue.substring(
+							AssetPublisher.SCOPE_ID_GROUP_PREFIX.length());
+					
+					long scopeIdGroupId = GetterUtil.getLong(scopeIdSuffix);
+					
+					Group scopeGroup = GroupLocalServiceUtil.getGroup(scopeIdGroupId);
+					
+					newValues[i] = AssetPublisher.SCOPE_ID_GROUP_URL_PREFIX + 
+						scopeGroup.getFriendlyURL();
+				}
+
 			}
 			else if (oldValue.startsWith(
 						AssetPublisher.SCOPE_ID_LAYOUT_PREFIX)) {
@@ -360,7 +372,7 @@ public class AssetPublisherPortletDataHandler
 			}
 			else if (name.equals("scopeIds")) {
 				updateImportScopeIds(
-					portletPreferences, name, companyGroup.getGroupId(),
+					portletPreferences, name, portletDataContext.getCompanyId(), companyGroup.getGroupId(),
 					portletDataContext.getPlid());
 			}
 		}
@@ -370,7 +382,7 @@ public class AssetPublisherPortletDataHandler
 
 	protected void updateImportScopeIds(
 			PortletPreferences portletPreferences, String key,
-			long companyGroupId, long plid)
+			long companyId, long companyGroupId, long plid)
 		throws Exception {
 
 		String[] oldValues = portletPreferences.getValues(key, null);
@@ -389,6 +401,26 @@ public class AssetPublisherPortletDataHandler
 		for (String oldValue : oldValues) {
 			String newValue = StringUtil.replace(
 				oldValue, "[$COMPANY_GROUP_SCOPE_ID$]", companyGroupScopeId);
+			
+			if (oldValue.startsWith(AssetPublisher.SCOPE_ID_GROUP_URL_PREFIX)) {
+				String scopeIdSuffix = oldValue.substring(
+						AssetPublisher.SCOPE_ID_GROUP_URL_PREFIX.length());
+				
+				try {
+					Group scopeGroup = GroupLocalServiceUtil.getFriendlyURLGroup(companyId, scopeIdSuffix);
+					
+					newValue = AssetPublisher.SCOPE_ID_GROUP_PREFIX + 
+						scopeGroup.getGroupId();
+				} catch (NoSuchGroupException nsge) {
+					if (_log.isInfoEnabled()) {
+						_log.info(
+							"Ignoring scope " + newValue + " because the " +
+								"referenced group was not found");
+					}
+					
+					continue;
+				}
+			}
 
 			try {
 				if (!AssetPublisherUtil.isScopeIdSelectable(

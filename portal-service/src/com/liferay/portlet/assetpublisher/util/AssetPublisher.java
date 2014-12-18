@@ -41,6 +41,8 @@ public interface AssetPublisher {
 
 	public static final String SCOPE_ID_GROUP_PREFIX = "Group_";
 
+	public static final String SCOPE_ID_GROUP_URL_PREFIX = "GroupUrl_";
+	
 	public static final String SCOPE_ID_LAYOUT_PREFIX = "Layout_";
 
 	public static final String SCOPE_ID_LAYOUT_UUID_PREFIX = "LayoutUuid_";
